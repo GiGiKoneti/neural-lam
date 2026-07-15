@@ -40,6 +40,7 @@ def mask_and_reduce_metric(
     mask: Optional[torch.Tensor],
     average_grid: bool,
     sum_vars: bool,
+    weights: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     Apply a boolean mask and optionally reduce a per-entry metric tensor.
@@ -58,6 +59,8 @@ def mask_and_reduce_metric(
         If True, average over the grid dimension ``N``.
     sum_vars : bool
         If True, sum over the variable dimension ``num_variables``.
+    weights : torch.Tensor or None, optional
+        Shape ``(N,)``. Spatial area weights for grid nodes.
 
     Returns
     -------
@@ -71,12 +74,20 @@ def mask_and_reduce_metric(
         metric_entry_vals = metric_entry_vals[
             ..., mask, :
         ]  # (..., num_selected_nodes, num_variables)
+        if weights is not None:
+            weights = weights[mask]
 
     # Optionally reduce last two dimensions
     if average_grid:  # Reduce grid first
-        metric_entry_vals = torch.mean(
-            metric_entry_vals, dim=-2
-        )  # (..., num_variables)
+        if weights is not None:
+            w_norm = weights / torch.sum(weights)
+            metric_entry_vals = torch.sum(
+                metric_entry_vals * w_norm.unsqueeze(-1), dim=-2
+            )
+        else:
+            metric_entry_vals = torch.mean(
+                metric_entry_vals, dim=-2
+            )  # (..., num_variables)
     if sum_vars:  # Reduce vars second
         metric_entry_vals = torch.sum(
             metric_entry_vals, dim=-1
@@ -92,6 +103,7 @@ def wmse(
     mask: Optional[torch.Tensor] = None,
     average_grid: bool = True,
     sum_vars: bool = True,
+    weights: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     Weighted Mean Squared Error.
@@ -115,6 +127,8 @@ def wmse(
         If True, average over the grid dimension (default True).
     sum_vars : bool, optional
         If True, sum over the variable dimension (default True).
+    weights : torch.Tensor or None, optional
+        Shape ``(N,)``. Spatial area weights for grid nodes.
 
     Returns
     -------
@@ -135,6 +149,7 @@ def wmse(
         mask=mask,
         average_grid=average_grid,
         sum_vars=sum_vars,
+        weights=weights,
     )
 
 
@@ -145,6 +160,7 @@ def mse(
     mask: Optional[torch.Tensor] = None,
     average_grid: bool = True,
     sum_vars: bool = True,
+    weights: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     (Unweighted) Mean Squared Error.
@@ -169,6 +185,8 @@ def mse(
         If True, average over the grid dimension (default True).
     sum_vars : bool, optional
         If True, sum over the variable dimension (default True).
+    weights : torch.Tensor or None, optional
+        Shape ``(N,)``. Spatial area weights for grid nodes.
 
     Returns
     -------
@@ -179,7 +197,13 @@ def mse(
     """
     # Replace pred_std with constant ones
     return wmse(
-        pred, target, torch.ones_like(pred_std), mask, average_grid, sum_vars
+        pred,
+        target,
+        torch.ones_like(pred_std),
+        mask,
+        average_grid,
+        sum_vars,
+        weights=weights,
     )
 
 
@@ -190,6 +214,7 @@ def wmae(
     mask: Optional[torch.Tensor] = None,
     average_grid: bool = True,
     sum_vars: bool = True,
+    weights: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     Weighted Mean Absolute Error.
@@ -213,6 +238,8 @@ def wmae(
         If True, average over the grid dimension (default True).
     sum_vars : bool, optional
         If True, sum over the variable dimension (default True).
+    weights : torch.Tensor or None, optional
+        Shape ``(N,)``. Spatial area weights for grid nodes.
 
     Returns
     -------
@@ -233,6 +260,7 @@ def wmae(
         mask=mask,
         average_grid=average_grid,
         sum_vars=sum_vars,
+        weights=weights,
     )
 
 
@@ -243,6 +271,7 @@ def mae(
     mask: Optional[torch.Tensor] = None,
     average_grid: bool = True,
     sum_vars: bool = True,
+    weights: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     (Unweighted) Mean Absolute Error.
@@ -267,6 +296,8 @@ def mae(
         If True, average over the grid dimension (default True).
     sum_vars : bool, optional
         If True, sum over the variable dimension (default True).
+    weights : torch.Tensor or None, optional
+        Shape ``(N,)``. Spatial area weights for grid nodes.
 
     Returns
     -------
@@ -277,7 +308,13 @@ def mae(
     """
     # Replace pred_std with constant ones
     return wmae(
-        pred, target, torch.ones_like(pred_std), mask, average_grid, sum_vars
+        pred,
+        target,
+        torch.ones_like(pred_std),
+        mask,
+        average_grid,
+        sum_vars,
+        weights=weights,
     )
 
 
@@ -288,6 +325,7 @@ def nll(
     mask: Optional[torch.Tensor] = None,
     average_grid: bool = True,
     sum_vars: bool = True,
+    weights: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     Negative Log Likelihood loss for an isotropic Gaussian likelihood.
@@ -311,6 +349,8 @@ def nll(
         If True, average over the grid dimension (default True).
     sum_vars : bool, optional
         If True, sum over the variable dimension (default True).
+    weights : torch.Tensor or None, optional
+        Shape ``(N,)``. Spatial area weights for grid nodes.
 
     Returns
     -------
@@ -326,7 +366,11 @@ def nll(
     entry_nll = -dist.log_prob(target)  # (..., num_grid_nodes, num_variables)
 
     return mask_and_reduce_metric(
-        entry_nll, mask=mask, average_grid=average_grid, sum_vars=sum_vars
+        entry_nll,
+        mask=mask,
+        average_grid=average_grid,
+        sum_vars=sum_vars,
+        weights=weights,
     )
 
 
@@ -337,6 +381,7 @@ def crps_gauss(
     mask: Optional[torch.Tensor] = None,
     average_grid: bool = True,
     sum_vars: bool = True,
+    weights: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     Continuous Ranked Probability Score (CRPS) for a Gaussian predictive
@@ -361,6 +406,8 @@ def crps_gauss(
         If True, average over the grid dimension (default True).
     sum_vars : bool, optional
         If True, sum over the variable dimension (default True).
+    weights : torch.Tensor or None, optional
+        Shape ``(N,)``. Spatial area weights for grid nodes.
 
     Returns
     -------
@@ -383,7 +430,11 @@ def crps_gauss(
     )  # (..., num_grid_nodes, num_variables)
 
     return mask_and_reduce_metric(
-        entry_crps, mask=mask, average_grid=average_grid, sum_vars=sum_vars
+        entry_crps,
+        mask=mask,
+        average_grid=average_grid,
+        sum_vars=sum_vars,
+        weights=weights,
     )
 
 

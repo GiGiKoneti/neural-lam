@@ -132,6 +132,17 @@ class ForecasterModule(pl.LightningModule):
         self.forecaster = forecaster
         self.matched_metrics: set = set()
 
+        # Get and register spatial area weights from datastore
+        area_weights = datastore.get_area_weights(category="state")
+        if area_weights.size > 0:
+            self.register_buffer(
+                "spatial_area_weights",
+                torch.tensor(area_weights, dtype=torch.float32),
+                persistent=False,
+            )
+        else:
+            self.spatial_area_weights = None
+
         # Compute interior_mask_bool directly from datastore
         boundary_mask = (
             torch.tensor(datastore.boundary_mask.values, dtype=torch.float32)
@@ -465,12 +476,14 @@ class ForecasterModule(pl.LightningModule):
             pred_std = self.per_var_std
         assert pred_std is not None
 
+        spatial_weights = getattr(self, "spatial_area_weights", None)
         time_step_loss = torch.mean(
             self.loss(
                 prediction,
                 target_states,
                 pred_std,
                 mask=self.interior_mask_bool,
+                weights=spatial_weights,
             ),
             dim=0,
         )
@@ -540,6 +553,7 @@ class ForecasterModule(pl.LightningModule):
             pred_std,
             mask=self.interior_mask_bool,
             sum_vars=False,
+            weights=getattr(self, "spatial_area_weights", None),
         )
         self.val_metrics["mse"].append(entry_mses)
 
@@ -582,9 +596,18 @@ class ForecasterModule(pl.LightningModule):
         )
 
         if self.forecaster.predicts_std:
-            mean_pred_std = torch.mean(
-                pred_std[..., self.interior_mask_bool, :], dim=-2
-            )
+            if getattr(self, "spatial_area_weights", None) is not None:
+                w = self.spatial_area_weights[self.interior_mask_bool]
+                w_norm = w / torch.sum(w)
+                mean_pred_std = torch.sum(
+                    pred_std[..., self.interior_mask_bool, :]
+                    * w_norm.unsqueeze(-1),
+                    dim=-2,
+                )
+            else:
+                mean_pred_std = torch.mean(
+                    pred_std[..., self.interior_mask_bool, :], dim=-2
+                )
             self.test_metrics["output_std"].append(mean_pred_std)
 
         mean_loss = torch.mean(time_step_loss)
@@ -605,6 +628,7 @@ class ForecasterModule(pl.LightningModule):
                 pred_std,
                 mask=self.interior_mask_bool,
                 sum_vars=False,
+                weights=getattr(self, "spatial_area_weights", None),
             )
             self.test_metrics[metric_name].append(batch_metric_vals)
 

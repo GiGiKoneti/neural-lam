@@ -363,6 +363,27 @@ class BaseDatastore(abc.ABC):
         )[:, :2]
         return lon_lat
 
+    @functools.lru_cache
+    def get_area_weights(self, category: str) -> np.ndarray:
+        """
+        Return spatial area weights for each grid node in the category.
+        """
+        lon_lat = self.get_lat_lon(category)
+        if lon_lat.size == 0:
+            return np.array([], dtype=np.float32)
+
+        # Local
+        from ..geometry import calculate_area_weights
+
+        lat = lon_lat[:, 1]
+        grid_type = (
+            "equiangular"
+            if isinstance(self.coords_projection, ccrs.PlateCarree)
+            else "uniform"
+        )
+        weights = calculate_area_weights(lat, grid_type=grid_type)
+        return weights.astype(np.float32)
+
     @property
     @abc.abstractmethod
     def num_grid_points(self) -> int:
