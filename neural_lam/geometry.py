@@ -1,5 +1,6 @@
 """Geometry and spherical coordinate conversion utilities."""
 
+# Third-party
 import numpy as np
 import torch
 
@@ -9,8 +10,8 @@ def latlon_to_cartesian(
     lon: np.ndarray | torch.Tensor,
 ) -> np.ndarray | torch.Tensor:
     """
-    Convert latitude/longitude coordinates (in degrees) to 3D Cartesian (x, y, z) coordinates
-    on a unit sphere.
+    Convert latitude/longitude coordinates (in degrees) to 3D Cartesian
+    (x, y, z) coordinates on a unit sphere.
 
     Parameters
     ----------
