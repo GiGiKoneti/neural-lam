@@ -132,14 +132,17 @@ class ForecasterModule(pl.LightningModule):
         self.forecaster = forecaster
         self.matched_metrics: set = set()
 
-        # Get and register spatial area weights from datastore
-        area_weights = datastore.get_area_weights(category="state")
-        if area_weights.size > 0:
-            self.register_buffer(
-                "spatial_area_weights",
-                torch.tensor(area_weights, dtype=torch.float32),
-                persistent=False,
-            )
+        # Get and register spatial area weights from datastore if enabled
+        if config.training.spatial_loss_weighting:
+            area_weights = datastore.get_area_weights(category="state")
+            if area_weights.size > 0:
+                self.register_buffer(
+                    "spatial_area_weights",
+                    torch.tensor(area_weights, dtype=torch.float32),
+                    persistent=False,
+                )
+            else:
+                self.spatial_area_weights = None
         else:
             self.spatial_area_weights = None
 

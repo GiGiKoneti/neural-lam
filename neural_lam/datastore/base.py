@@ -285,18 +285,6 @@ class BaseDatastore(abc.ABC):
 
         """
 
-    @cached_property
-    def has_boundary(self) -> bool:
-        """
-        Check if the dataset has boundary points.
-
-        Returns
-        -------
-        bool
-            True if the boundary mask has at least one boundary point.
-        """
-        return bool((self.boundary_mask == 1).any().item())
-
     @abc.abstractmethod
     def get_xy(self, category: str, stacked: bool) -> np.ndarray:
         """

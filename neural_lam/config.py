@@ -115,6 +115,8 @@ class TrainingConfig:
         default_factory=OutputClamping
     )
 
+    spatial_loss_weighting: bool = False
+
 
 @dataclasses.dataclass
 class NeuralLAMConfig(dataclass_wizard.JSONWizard, dataclass_wizard.YAMLWizard):
