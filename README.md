@@ -8,8 +8,10 @@
 
 Neural-LAM is a repository of graph-based neural weather prediction models for Limited Area Modeling (LAM).
 Also global forecasting is possible, but currently on a [different branch](https://github.com/mllam/neural-lam/tree/prob_model_global) ([planned to be merged with main](https://github.com/mllam/neural-lam/issues/63)).
-The code uses [PyTorch](https://pytorch.org/) and [PyTorch Lightning](https://lightning.ai/pytorch-lightning).
+The code uses [PyTorch](https://pytorch.org/) and [PyTorch Lightning](https://github.com/Lightning-AI/pytorch-lightning).
 Graph Neural Networks are implemented using [PyG](https://pyg.org/) and logging is set up through [Weights & Biases](https://wandb.ai/).
+
+Read the [Neural-LAM documentation](https://mllam.github.io/neural-lam/) for installation, quickstart, and API reference.
 
 The repository contains LAM versions of:
 
@@ -73,7 +75,7 @@ development toolchain packages installation too.
 **regarding `torch` installation**: `torch` is a required dependency, but it ships separate variants for CPU-only and each CUDA version. With `uv`, the correct PyTorch index is chosen automatically via `[tool.uv.sources]`. With `pip`, you must pass `--index-url` explicitly (see instructions below).
 
 We cover all the installation options in our [github actions ci/cd
-setup](.github/workflows/) which you can use as a reference.
+setup](https://github.com/mllam/neural-lam/tree/main/.github/workflows) which you can use as a reference.
 
 ### From pypi.org
 
@@ -504,6 +506,9 @@ To train Hi-LAM-Parallel use
 python -m neural_lam.train_model --model hi_lam_parallel --graph hierarchical ...
 ```
 
+### Persistence
+A trivial baseline model that returns the previous state unchanged at each step (`--model persistence`). Since it has no learnable parameters, it must be evaluated directly without training (e.g. `--eval val` or `--eval test`).
+
 Checkpoint files for our models trained on the MEPS data are available upon request.
 
 ### High Performance Computing
@@ -555,7 +560,7 @@ This issue stems from PyTorch Lightning. See for example [this PR](https://githu
 # Repository Structure
 Except for training and pre-processing scripts all the source code can be found in the `neural_lam` directory.
 Model classes, including abstract base classes, are located in `neural_lam/models`.
-Notebooks for visualization and analysis are located in `docs/notebooks`.
+Notebooks for visualization and analysis are marimo `.py` files in `docs/notebooks`.
 
 ## Format of graph directory
 The `graphs` directory contains generated graph structures that can be used by different graph-based models.

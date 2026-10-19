@@ -1,6 +1,7 @@
 # Standard library
 import typing
 from argparse import Namespace
+from typing import TYPE_CHECKING
 
 # Third-party
 import pytest
@@ -9,10 +10,13 @@ import torch
 
 # First-party
 from neural_lam import config as nlconfig
-from neural_lam.datastore.base import BaseDatastore
 from neural_lam.models import ARForecaster, ForecasterModule, StepPredictor
 from tests.conftest import init_datastore_example
 from tests.dummy_datastore import DummyDatastore
+
+if TYPE_CHECKING:
+    # First-party
+    from neural_lam.datastore.base import BaseDatastore
 
 
 class NoStaticDummyDatastore(DummyDatastore):
@@ -36,6 +40,7 @@ class MockStepPredictor(StepPredictor):
         return pred_state, pred_std
 
 
+@pytest.mark.requires_real_data
 def test_ar_forecaster_unroll():
     datastore = init_datastore_example("mdp")
     predictor = MockStepPredictor(
@@ -74,6 +79,7 @@ def test_ar_forecaster_unroll():
     assert torch.all(prediction[:, :, 1:, :] == 5.0)
 
 
+@pytest.mark.requires_real_data
 def test_forecaster_module_checkpoint(tmp_path):
     datastore = init_datastore_example("mdp")
 
@@ -172,6 +178,7 @@ def test_forecaster_module_checkpoint(tmp_path):
     assert torch.allclose(out_before[0], out_after[0])
 
 
+@pytest.mark.requires_real_data
 def test_forecaster_module_old_checkpoint(tmp_path):
     datastore = init_datastore_example("mdp")
 
@@ -316,6 +323,7 @@ def test_forecaster_module_old_checkpoint(tmp_path):
     assert torch.allclose(out_before[0], out_after[0])
 
 
+@pytest.mark.requires_real_data
 def test_graph_lam_no_static_features():
     """GraphLAM (real GNN) should run a forward pass when the datastore has
     no static features - verifying that the empty static tensor flows through
@@ -358,7 +366,9 @@ def test_graph_lam_no_static_features():
 
     assert predictor.grid_static_features.shape[1] == 0
 
-    forecaster = ARForecaster(predictor, typing.cast(BaseDatastore, datastore))
+    forecaster = ARForecaster(
+        predictor, typing.cast("BaseDatastore", datastore)
+    )
     B = 2
     num_grid_nodes = predictor.num_grid_nodes
     d_state = base_datastore.get_num_data_vars(category="state")
